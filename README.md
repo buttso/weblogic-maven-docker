@@ -9,7 +9,7 @@ WebLogic Docker Containers from Maven.
 
 ## Add the docker-maven-plugin
 
-Configure the POM with the org.jolokia:docker-maven-plugin and configure it to use the weblogic docker image.  One useful trick is to make use of the <wait> option and point it to the WebLogic console address, so the start operation will complete when it sees the console is available and thus the image is ready to use.
+Configure the POM with the org.jolokia:docker-maven-plugin and configure it to use the weblogic docker image.  One useful trick is to make use of the `<wait>` option and point it to the WebLogic console address, so the start operation will complete when it sees the console is available and thus the image is ready to use.
 
 The Docker image here was created from the [WebLogic on Docker](https://github.com/oracle/docker-images/tree/master/OracleWebLogic) project.
 
@@ -82,8 +82,16 @@ The Docker image here was created from the [WebLogic on Docker](https://github.c
 ```
 ## Start a WebLogic Container
 
+The WebLogic Docker Container can be managed from the Maven project now. 
+
+* Started using the `docker:start` goal
+* Stopped using the `docker:stop` goal
+
+### Starting with docker:start
+
 ```shell
 [sbutton@MacBook-Pro] weblogic-maven-docker $ mvn docker:start
+
 [INFO] Scanning for projects...
 [INFO]                                                                         
 [INFO] ------------------------------------------------------------------------
@@ -149,4 +157,151 @@ dev> <Dec 3, 2015 5:15:32 AM GMT> <Notice> <WebLogicServer> <BEA-000365> <Server
 [INFO] ------------------------------------------------------------------------
 ```
 
+### Stopping with docker:stop
+
+```shell
+[sbutton@MacBook-Pro] weblogic-maven-docker $ mvn docker:stop
+[INFO] Scanning for projects...
+[INFO]                                                                         
+[INFO] ------------------------------------------------------------------------
+[INFO] Building mavendocker 1.0
+[INFO] ------------------------------------------------------------------------
+[INFO] 
+[INFO] --- docker-maven-plugin:0.13.6:stop (default-cli) @ mavendocker ---
+[INFO] DOCKER> [sab/weblogic:12.2.1.1] "dev": Stop and remove container b7c2b9e11b73
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time: 1.847 s
+[INFO] Finished at: 2015-12-03T15:49:52+10:30
+[INFO] Final Memory: 15M/282M
+[INFO] ------------------------------------------------------------------------
+```
+
+### Logging
+
+The logging output can be enabled or disabled from the `<log>` element or from the command line with a System property.
+
+```shell
+[sbutton@MacBook-Pro] weblogic-maven-docker $ mvn -Ddocker.showLogs=false docker:start
+
+[INFO] Scanning for projects...
+[INFO]                                                                         
+[INFO] ------------------------------------------------------------------------
+[INFO] Building mavendocker 1.0
+[INFO] ------------------------------------------------------------------------
+[INFO] 
+[INFO] --- docker-maven-plugin:0.13.6:start (default-cli) @ mavendocker ---
+[INFO] DOCKER> [sab/weblogic:12.2.1.1] "dev": Start container 0a7c9dcd3131
+[INFO] DOCKER> [sab/weblogic:12.2.1.1] "dev": Waited on url http://192.168.99.100:5001/console 15704 ms
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time: 18.692 s
+[INFO] Finished at: 2015-12-03T15:52:49+10:30
+[INFO] Final Memory: 16M/282M
+[INFO] ------------------------------------------------------------------------
+```
+
+## Mapping Docker Container Lifecycle to Maven Phases
+
+Another useful trick is to bind the docker container lifecycle to the maven phases so that it can be automatically started to perform a test suite and stopped at the end.
+
+This can be done using a `<profile>` than encapsulates the settings and will only be used when specified.
+
+```xml
+    <profiles>
+        <!-- ########################################## -->
+        <!-- WEBLOGIC  FUNCTIONAL TESTING -->  
+        <!-- ########################################## -->
+        <profile>
+            <id>uat</id>
+            <activation>
+                <activeByDefault>false</activeByDefault>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.jolokia</groupId>
+                        <artifactId>docker-maven-plugin</artifactId>
+                        <configuration>
+                            <images>
+                                <image>
+                                    <alias>uat</alias>
+                                    <name>${docker.uat.image}</name>
+                                    <run>
+                                        <ports>
+                                            <port>${docker.uat.ports}</port> 
+                                        </ports>
+                                        <wait>
+                                            <url>${docker.uat.url}</url>
+                                            <time>60000</time>
+                                        </wait>
+                                        <log>
+                                            <color>GREEN</color>
+                                        </log>
+                                    </run>
+                                </image>
+                            </images>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>start</id>
+                                <phase>pre-integration-test</phase>
+                                <goals>
+                                    <goal>start</goal>
+                                </goals>
+                            </execution>
+                            <execution>
+                                <id>stop</id>
+                                <phase>post-integration-test</phase>
+                                <goals>
+                                    <goal>stop</goal>
+                                </goals>
+                            </execution>
+                            <execution>
+                                <id>clean</id>
+                                <phase>clean</phase>
+                                <goals>
+                                    <goal>stop</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>                    
+                </plugins>
+            </build>
+        </profile>
+```
+
+## Starting and Stopping WebLogic Docker Image Automatically
+
+Using the `uat` profile, when the maven verify goal is called the WebLogic Docker Container will be started and subsequently stopped as the phases are reached.
+
+```shell
+[sbutton@MacBook-Pro] weblogic-maven-docker $ mvn -Ddocker.showLogs=false -Puat verify
+
+[INFO] Scanning for projects...
+[INFO]                                                                         
+[INFO] ------------------------------------------------------------------------
+[INFO] Building mavendocker 1.0
+[INFO] ------------------------------------------------------------------------
+[INFO] 
+[INFO] --- docker-maven-plugin:0.13.6:start (start) @ mavendocker ---
+[INFO] DOCKER> [sab/weblogic:12.2.1.1] "uat": Start container d1412b16cfd2
+[INFO] DOCKER> [sab/weblogic:12.2.1.1] "uat": Waited on url http://192.168.99.100:7001/console 17695 ms
+[INFO] 
+
+... TESTS WOULD EXECUTE ...
+
+[INFO] --- docker-maven-plugin:0.13.6:stop (stop) @ mavendocker ---
+[INFO] DOCKER> [sab/weblogic:12.2.1.1] "uat": Stop and remove container d1412b16cfd2
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time: 19.821 s
+[INFO] Finished at: 2015-12-03T15:59:20+10:30
+[INFO] Final Memory: 16M/282M
+[INFO] ------------------------------------------------------------------------
+
+```
 

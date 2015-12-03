@@ -9,9 +9,19 @@ WebLogic Docker Containers from Maven.
 
 ## Add the docker-maven-plugin
 
-Configure the POM with the org.jolokia:docker-maven-plugin and configure it to use the weblogic docker image.  One useful trick is to make use of the `<wait>` option and point it to the WebLogic console address, so the start operation will complete when it sees the console is available and thus the image is ready to use.
+Configure the POM with the org.jolokia:docker-maven-plugin and configure it to use the weblogic docker image.
+
+One useful trick is to make use of the `<wait>` option and point it to the WebLogic console address, so the start operation will complete when it sees the console is available and thus the image is ready to use.
+
+```xml
+<wait>
+    <url>${docker.dev.url}</url>
+    <time>60000</time>
+</wait>
+```
 
 The Docker image here was created from the [WebLogic on Docker](https://github.com/oracle/docker-images/tree/master/OracleWebLogic) project.
+
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>

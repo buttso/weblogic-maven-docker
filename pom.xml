@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>buttso.demo.weblogic</groupId>
+    <artifactId>mavendocker</artifactId>
+    <version>1.0</version>
+    <packaging>pom</packaging>
+    <description>Simple example of Starting WebLogic Docker Images from Maven</description>
+
+    <properties>
+        <docker.host>tcp://192.168.99.100:2376</docker.host>
+        <docker.certpath>/Users/sbutton/.docker/machine/machines/default</docker.certpath>
+        
+        <docker.dev.ports>192.168.99.100:5001:8001</docker.dev.ports>
+        <docker.dev.url>http://192.168.99.100:5001/console</docker.dev.url>
+        <docker.dev.image>sab/weblogic:12.2.1.1</docker.dev.image>
+        
+        <docker.uat.ports>192.168.99.100:7001:8001</docker.uat.ports>
+        <docker.uat.url>http://192.168.99.100:7001/console</docker.uat.url>
+        <docker.uat.image>sab/weblogic:12.2.1.1</docker.uat.image>
+    </properties>
+    
+    <dependencies>
+    </dependencies>
+  
+    <build>
+        <finalName>mavendocker</finalName>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>2.3.2</version>
+                <configuration>
+                    <source>1.8</source>
+                    <target>1.8</target>
+                </configuration>
+            </plugin>
+
+            <!-- Docker Maven Plugin -->
+            <plugin>
+                <groupId>org.jolokia</groupId>
+                <artifactId>docker-maven-plugin</artifactId>
+                <version>0.13.6 </version>
+                <configuration>
+                    <dockerHost>${docker.host}</dockerHost>
+                    <certPath>${docker.certpath}</certPath>
+                    <images>
+                        <image>
+                            <alias>dev</alias>
+                            <name>${docker.dev.image}</name>
+                            <run>
+                                <ports>
+                                    <port>${docker.dev.ports}</port> 
+                                </ports>
+                                <wait>
+                                    <url>${docker.dev.url}</url>
+                                    <time>60000</time>
+                                </wait>
+                                <log>
+                                    <color>CYAN</color>
+                                </log>
+                            </run>
+                        </image>
+                    </images>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+    
+    <profiles>
+        <!-- ########################################## -->
+        <!-- WEBLOGIC TEST SUITE FOR FUNCTIONAL TESTING -->  
+        <!-- ########################################## -->
+        <profile>
+            <id>uat</id>
+            <activation>
+                <activeByDefault>false</activeByDefault>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.jolokia</groupId>
+                        <artifactId>docker-maven-plugin</artifactId>
+                        <configuration>
+                            <images>
+                                <image>
+                                    <alias>uat</alias>
+                                    <name>${docker.uat.image}</name>
+                                    <run>
+                                        <ports>
+                                            <port>${docker.uat.ports}</port> 
+                                        </ports>
+                                        <wait>
+                                            <url>${docker.uat.url}</url>
+                                            <time>60000</time>
+                                        </wait>
+                                        <log>
+                                            <color>GREEN</color>
+                                        </log>
+                                    </run>
+                                </image>
+                            </images>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>start</id>
+                                <phase>pre-integration-test</phase>
+                                <goals>
+                                    <goal>start</goal>
+                                </goals>
+                            </execution>
+                            <execution>
+                                <id>stop</id>
+                                <phase>post-integration-test</phase>
+                                <goals>
+                                    <goal>stop</goal>
+                                </goals>
+                            </execution>
+                            <execution>
+                                <id>clean</id>
+                                <phase>clean</phase>
+                                <goals>
+                                    <goal>stop</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>                    
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+</project>
